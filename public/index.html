@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>AnonyChat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 100vw; /* Giới hạn chiều rộng */
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    #messages {
+      max-height: calc(100vh - 270px); /* co dãn theo chiều cao màn hình */
+      overflow-y: auto;
+    }
+
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 12px;
+      background: #374151;
+      border-radius: 16px;
+      width: fit-content;
+    }
+    
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: #9ca3af;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    
+    @keyframes typing {
+      0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.5;
+      }
+      30% {
+        transform: translateY(-4px);
+        opacity: 1;
+      }
+    }
+    
+    .message-bubble {
+      max-width: 70%;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .online-indicator {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    .message-time {
+      font-size: 0.7rem;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+    
+    .emoji-picker {
+      position: absolute;
+      bottom: 60px;
+      right: 20px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      max-height: 200px;
+      max-width: 95vw;
+      overflow-y: auto;
+    }
+    
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+    
+    .emoji-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: none;
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    
+    .emoji-btn:hover {
+      background: #374151;
+    }
+    
+    .file-preview {
+      max-width: 200px;
+      max-height: 200px;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
+    
+    .file-info {
+      background: #374151;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .file-icon {
+      width: 24px;
+      height: 24px;
+      background: #6b7280;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: white;
+    }
+    @media (max-width: 640px) {
+      .chat-container {
+        padding: 1rem !important;
+      }
+      .message-bubble {
+        font-size: 0.85rem;
+      }
+      .emoji-btn {
+        font-size: 18px;
+        width: 28px;
+        height: 28px;
+      }
+    }
+    .dot {
+      animation: bounceDot 1.2s infinite ease-in-out;
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounceDot {
+      0%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-8px);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4 sm:p-2">
+  <div class="bg-gray-800 border border-gray-700 shadow-2xl rounded-2xl p-6 w-full max-w-xl sm:max-w-2xl chat-container">
+    <!-- Waiting Room Redesigned -->
+    <div id="waiting-room" class="flex flex-col items-center justify-center gap-4 mb-6 text-gray-200">
+      <div class="text-5xl animate-bounce">🤖</div>
+      <div class="text-2xl font-bold">Đang tìm người lạ...</div>
+      <div class="text-sm text-gray-400 animate-pulse">
+        Hãy thư giãn trong lúc hệ thống tìm người bạn mới cho bạn
+      </div>
+      <div class="flex gap-1 text-xl font-semibold text-blue-400">
+        <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+      </div>
+      <div id="status" class="text-sm text-gray-400"></div>
+      <div id="quote" class="text-center text-sm text-gray-400 italic mt-2 px-4"></div>
+    </div>
+
+
+
+
+    
+    <!-- Chat Container -->
+    <div id="chat" class="hidden">
+      <!-- Chat Header -->
+      <div class="bg-gray-700 rounded-t-lg p-3 border-b border-gray-600 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="online-indicator"></div>
+          <span class="text-sm font-medium text-gray-200">Người lạ</span>
+        </div>
+        <button onclick="disconnect()" class="text-red-400 hover:text-red-300 text-sm">
+          Ngắt kết nối
+        </button>
+      </div>
+      
+      <!-- Messages Area -->
+      <div id="messages" class="bg-gray-900 h-80 min-h-[300px] overflow-y-auto p-3 space-y-3 border-l border-r border-gray-600">
+        <!-- Messages will be inserted here -->
+      </div>
+      
+      <!-- Typing Indicator -->
+      <div id="typing-container" class="px-3 py-2 bg-gray-900 border-l border-r border-gray-600 hidden">
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+      
+      <!-- Emoji Picker -->
+      <div id="emoji-picker" class="emoji-picker hidden">
+        <div class="emoji-grid">
+          <button class="emoji-btn" onclick="insertEmoji('😀')">😀</button>
+          <button class="emoji-btn" onclick="insertEmoji('😂')">😂</button>
+          <button class="emoji-btn" onclick="insertEmoji('😍')">😍</button>
+          <button class="emoji-btn" onclick="insertEmoji('😊')">😊</button>
+          <button class="emoji-btn" onclick="insertEmoji('😎')">😎</button>
+          <button class="emoji-btn" onclick="insertEmoji('😢')">😢</button>
+          <button class="emoji-btn" onclick="insertEmoji('😡')">😡</button>
+          <button class="emoji-btn" onclick="insertEmoji('😱')">😱</button>
+          <button class="emoji-btn" onclick="insertEmoji('🤔')">🤔</button>
+          <button class="emoji-btn" onclick="insertEmoji('👍')">👍</button>
+          <button class="emoji-btn" onclick="insertEmoji('👎')">👎</button>
+          <button class="emoji-btn" onclick="insertEmoji('❤️')">❤️</button>
+          <button class="emoji-btn" onclick="insertEmoji('💔')">💔</button>
+          <button class="emoji-btn" onclick="insertEmoji('🔥')">🔥</button>
+          <button class="emoji-btn" onclick="insertEmoji('💯')">💯</button>
+          <button class="emoji-btn" onclick="insertEmoji('🎉')">🎉</button>
+          <button class="emoji-btn" onclick="insertEmoji('🚀')">🚀</button>
+          <button class="emoji-btn" onclick="insertEmoji('⭐')">⭐</button>
+        </div>
+      </div>
+      
+      <!-- Input Area -->
+      <div class="bg-gray-700 rounded-b-lg p-3 border-t border-gray-600 relative">
+        <div class="flex gap-2">
+          <input 
+            type="file" 
+            id="file-input" 
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt" 
+            class="hidden"
+            onchange="handleFileSelect(event)"
+          />
+          <button 
+            onclick="document.getElementById('file-input').click()" 
+            class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-full transition-colors duration-200"
+            title="Gửi file"
+          >
+            📎
+          </button>
+          <button 
+            onclick="toggleEmojiPicker()" 
+            class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-full transition-colors duration-200"
+            title="Emoji"
+          >
+            😊
+          </button>
+          <input 
+            id="input" 
+            type="text" 
+            placeholder="Nhập tin nhắn..." 
+            class="flex-1 border border-gray-600 bg-gray-800 text-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button 
+            onclick="send()" 
+            class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full transition-colors duration-200 font-medium"
+          >
+            Gửi
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    // Socket connection
+    const socket = io();
+    const messages = document.getElementById("messages");
+    const input = document.getElementById("input");
+    const status = document.getElementById("status");
+    const chatDiv = document.getElementById("chat");
+    const typingContainer = document.getElementById("typing-container");
+    
+    let isTyping = false;
+    let typingTimeout;
+    
+    // Socket events
+    socket.on("matched", () => {
+      status.innerHTML = '<div class="flex items-center gap-2"><div class="online-indicator"></div><span class="text-gray-300">Đã kết nối với người lạ!</span></div>';
+      chatDiv.classList.remove("hidden");
+      document.getElementById("waiting-room").classList.add("hidden");
+      
+      // Welcome message
+      appendSystemMessage("Bạn đã được kết nối với một người lạ. Hãy bắt đầu cuộc trò chuyện!");
+    });
+    
+    socket.on("message", (data) => {
+      if (data.type === "file") {
+        appendFileMessage("partner", data);
+      } else {
+        appendMessage("partner", data.text || data);
+        document.getElementById("receive-sound").play();
+      }
+    });
+    
+    socket.on("partner-disconnected", () => {
+      const status = document.getElementById("status");
+      if (status) {
+        status.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-red-400">❌</span>
+            <span class="text-gray-400">Người lạ đã rời đi</span>
+          </div>`;
+      }
+
+      appendSystemMessage("❌ Người lạ đã ngắt kết nối. Bạn có thể tải lại để bắt đầu cuộc trò chuyện mới.");
+      appendSystemMessage(`<button onclick="location.reload()" class="mt-2 text-blue-400 hover:underline">🔄 Tìm người mới</button>`);
+    });
+
+    
+    socket.on("typing", () => {
+      showTypingIndicator();
+    });
+    
+    socket.on("stop-typing", () => {
+      hideTypingIndicator();
+    });
+    
+    // Input handling
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        send();
+      } else {
+        handleTyping();
+      }
+    });
+    
+    input.addEventListener("input", handleTyping);
+    
+    // Close emoji picker when clicking outside
+    document.addEventListener("click", (e) => {
+      const emojiPicker = document.getElementById("emoji-picker");
+      const emojiBtn = e.target.closest('button[onclick="toggleEmojiPicker()"]');
+      if (!emojiPicker.contains(e.target) && !emojiBtn) {
+        emojiPicker.classList.add("hidden");
+      }
+    });
+    
+    function handleTyping() {
+      if (!isTyping) {
+        isTyping = true;
+        socket.emit("typing");
+      }
+      
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        isTyping = false;
+        socket.emit("stop-typing");
+      }, 1000);
+    }
+    
+    function send() {
+      const msg = input.value.trim();
+      if (msg) {
+        const messageData = { text: msg, type: "text" };
+        socket.emit("message", messageData);
+        appendMessage("user", msg);
+        document.getElementById("send-sound").play();
+        input.value = "";
+        
+        // Stop typing indicator
+        if (isTyping) {
+          isTyping = false;
+          socket.emit("stop-typing");
+          clearTimeout(typingTimeout);
+        }
+      }
+    }
+    
+    function toggleEmojiPicker() {
+      const emojiPicker = document.getElementById("emoji-picker");
+      emojiPicker.classList.toggle("hidden");
+    }
+    
+    function insertEmoji(emoji) {
+      const currentValue = input.value;
+      const cursorPosition = input.selectionStart;
+      const newValue = currentValue.substring(0, cursorPosition) + emoji + currentValue.substring(cursorPosition);
+      input.value = newValue;
+      input.focus();
+      input.setSelectionRange(cursorPosition + emoji.length, cursorPosition + emoji.length);
+      
+      // Hide emoji picker
+      document.getElementById("emoji-picker").classList.add("hidden");
+    }
+    
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert("File quá lớn! Giới hạn 5MB.");
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const fileData = {
+            type: "file",
+            name: file.name,
+            size: file.size,
+            mimeType: file.type,
+            data: e.target.result
+          };
+          
+          socket.emit("message", fileData);
+          appendFileMessage("user", fileData);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function disconnect() {
+      socket.disconnect();
+      location.reload();
+    }
+    
+    function appendMessage(sender, msg) {
+      const messageDiv = document.createElement("div");
+      const time = new Date().toLocaleTimeString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
+      if (sender === "user") {
+        messageDiv.className = "flex justify-end";
+        messageDiv.innerHTML = `
+          <div class="message-bubble bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2">
+            <div>${msg}</div>
+            <div class="message-time text-blue-200">${time}</div>
+          </div>
+        `;
+      } else {
+        messageDiv.className = "flex justify-start";
+        messageDiv.innerHTML = `
+          <div class="message-bubble bg-gray-700 text-gray-100 rounded-2xl rounded-bl-md px-4 py-2">
+            <div>${msg}</div>
+            <div class="message-time text-gray-400">${time}</div>
+          </div>
+        `;
+      }
+      
+      messages.appendChild(messageDiv);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function appendFileMessage(sender, fileData) {
+      const messageDiv = document.createElement("div");
+      const time = new Date().toLocaleTimeString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
+      const isImage = fileData.mimeType.startsWith('image/');
+      const isVideo = fileData.mimeType.startsWith('video/');
+      
+      let fileContent = '';
+      if (isImage) {
+        fileContent = `<img src="${fileData.data}" alt="${fileData.name}" class="file-preview" onclick="window.open(this.src, '_blank')">`;
+      } else if (isVideo) {
+        fileContent = `<video controls class="file-preview"><source src="${fileData.data}" type="${fileData.mimeType}"></video>`;
+      } else {
+        const fileSize = (fileData.size / 1024).toFixed(1);
+        const fileExtension = fileData.name.split('.').pop().toUpperCase();
+        fileContent = `
+          <div class="file-info">
+            <div class="file-icon">${fileExtension}</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium text-gray-200">${fileData.name}</div>
+              <div class="text-xs text-gray-400">${fileSize} KB</div>
+            </div>
+            <a href="${fileData.data}" download="${fileData.name}" class="text-blue-400 hover:text-blue-300 text-xs">Tải về</a>
+          </div>
+        `;
+      }
+      
+      if (sender === "user") {
+        messageDiv.className = "flex justify-end";
+        messageDiv.innerHTML = `
+          <div class="message-bubble bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2">
+            ${fileContent}
+            <div class="message-time text-blue-200">${time}</div>
+          </div>
+        `;
+      } else {
+        messageDiv.className = "flex justify-start";
+        messageDiv.innerHTML = `
+          <div class="message-bubble bg-gray-700 text-gray-100 rounded-2xl rounded-bl-md px-4 py-2">
+            ${fileContent}
+            <div class="message-time text-gray-400">${time}</div>
+          </div>
+        `;
+      }
+      
+      messages.appendChild(messageDiv);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function appendSystemMessage(msg) {
+      const messageDiv = document.createElement("div");
+      messageDiv.className = "flex justify-center";
+      messageDiv.innerHTML = `
+        <div class="text-xs text-gray-500 bg-gray-800 rounded-full px-3 py-1">
+          ${msg}
+        </div>
+      `;
+      messages.appendChild(messageDiv);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function showTypingIndicator() {
+      typingContainer.classList.remove("hidden");
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function hideTypingIndicator() {
+      typingContainer.classList.add("hidden");
+    }
+    
+    // Initialize
+    input.focus();
+
+    const quotes = [
+      "💡 Hãy thân thiện — người bên kia cũng đang hồi hộp như bạn!",
+      "⌛ Tìm bạn mới đôi khi cũng cần một chút kiên nhẫn.",
+      "🧠 Trí tuệ cảm xúc cao sẽ khiến cuộc trò chuyện thú vị hơn.",
+      "🔄 Ghép đôi ngẫu nhiên... Có thể đó là một người bạn tuyệt vời!",
+      "😄 Một câu chào có thể là khởi đầu của một tình bạn."
+    ];
+
+    function showRandomQuote() {
+      const quoteEl = document.getElementById("quote");
+      if (quoteEl) {
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        quoteEl.textContent = randomQuote;
+      }
+    }
+
+    setInterval(showRandomQuote, 5000);
+    showRandomQuote(); // lần đầu
+
+  </script>
+  <audio id="send-sound" src="send.mp3" preload="auto"></audio>
+  <audio id="receive-sound" src="receive.mp3" preload="auto"></audio>
+</body>
+</html>
