@@ -1,0 +1,105 @@
+Rất hay! App AnonyChat của bạn đã khá hoàn chỉnh, nhưng để **nâng cấp trải nghiệm và giữ chân người dùng**, dưới đây là **các tính năng bạn *có thể* thêm**, được chia thành 3 nhóm:
+
+---
+
+## 🚀 NHÓM 1: **Tăng trải nghiệm trò chuyện (UX/UI + tiện ích)**
+
+### ✅ 1. **Xem lại cuộc trò chuyện trước (History tạm thời)**
+
+* Dùng `localStorage` để lưu lại đoạn chat cuối cùng (client-side).
+* Khi user reload, hỏi:
+
+  > “🕘 Bạn có muốn xem lại cuộc trò chuyện trước?”
+
+---
+
+### ✅ 2. **Nút gửi nhanh tin nhắn mẫu (quick replies)**
+
+* Ví dụ các nút như:
+
+  > “Chào bạn 👋” | “Bạn từ đâu vậy?” | “Mình tên là...”
+* Giúp phá băng nhanh hơn và phù hợp người ngại gõ.
+
+---
+
+### ✅ 3. **Hiển thị thời gian online (hoặc đã ghép bao lâu)**
+
+* Ví dụ: “⏱ Đã trò chuyện: 2 phút”
+* Đếm bằng `setInterval()` sau khi `matched`.
+
+---
+
+### ✅ 4. **Theme tùy chọn (Dark / Light)**
+
+* Cho người dùng chuyển giao diện theo sở thích.
+* Dễ làm bằng Tailwind và lưu vào `localStorage`.
+
+---
+
+## 💬 NHÓM 2: **Tăng tính tương tác**
+
+### ✅ 5. **Gửi cảm xúc (reaction)**
+
+* Cho phép người dùng thả ❤️ 😆 😮 🥺 … vào từng tin nhắn.
+* Rất phổ biến trong Zalo/Messenger.
+
+---
+
+### ✅ 6. **Tính năng “kết bạn lại” sau khi rời phòng**
+
+* Sau khi disconnect, hiện:
+
+  > “🌟 Bạn có muốn kết nối lại với \${name}?”
+* Nếu 2 người cùng đồng ý → tạo private room hoặc mã code.
+
+---
+
+### ✅ 7. **Chế độ “chủ đề trò chuyện”**
+
+* Trước khi ghép: chọn 1 chủ đề (tình yêu, học tập, random…)
+* Dùng để gợi mở trò chuyện ban đầu.
+
+---
+
+## 🔐 NHÓM 3: **Bảo vệ & kiểm soát**
+
+### ✅ 8. **Báo cáo người dùng xấu (Report)**
+
+* Nút "🚫 Báo cáo người dùng"
+* Gửi ID tạm của đối phương lên server (backend xử lý).
+
+---
+
+### ✅ 9. **Chặn spam tin nhắn liên tục**
+
+* Giới hạn gửi mỗi 300–500ms / tin nhắn.
+* Chống spam và giảm tải server.
+
+---
+
+### ✅ 10. **Cảnh báo từ ngữ độc hại (toxic filter)**
+
+* Regex kiểm tra nội dung.
+* Nếu có từ cấm → cảnh báo nhẹ nhàng, hoặc không gửi được.
+
+---
+
+## 🧠 GỢI Ý CHỌN:
+
+Nếu bạn chưa biết chọn gì tiếp theo, mình gợi ý:
+
+🎯 **Dễ làm – Hữu ích**:
+
+* Xem lại cuộc trò chuyện trước
+* Hiển thị thời gian trò chuyện
+* Quick replies
+
+🔥 **Khó hơn nhưng rất giá trị**:
+
+* Gửi cảm xúc
+* Kết bạn lại
+* Báo cáo người dùng xấu
+
+---
+
+Bạn muốn mình **triển khai thử 1 tính năng** cụ thể nào trong này cho bạn không? Mình sẵn sàng code mẫu luôn.

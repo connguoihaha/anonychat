@@ -201,77 +201,6 @@
 </head>
 <body class="bg-gray-900 min-h-screen flex items-center justify-center p-4 sm:p-2">
   <div class="bg-gray-800 border border-gray-700 shadow-2xl rounded-2xl px-4 py-6 sm:p-6 w-full max-w-[700px] sm:max-w-2xl chat-container">
-    <!-- Waiting Room Redesigned -->
-    <div id="waiting-room" class="flex flex-col items-center justify-center gap-4 mb-6 text-gray-200">
-      <!-- Icon -->
-      <div class="text-5xl animate-bounce">🤖</div>
-
-      <!-- Tiêu đề -->
-      <div class="text-2xl font-bold">Ghép đôi trò chuyện ẩn danh</div>
-
-      <!-- Người online -->
-      <div id="online-count" class="text-sm text-gray-400 flex items-center gap-2">
-        <div class="online-indicator"></div>
-        <span>Đang tải số người online...</span>
-      </div>
-
-      <!-- Nhập tên và chọn giới tính -->
-      <div class="w-full max-w-xs flex flex-col gap-4">
-      <!-- Ô nhập tên -->
-      <div class="flex flex-col">
-        <label for="username-input" class="text-sm text-gray-400 mb-1">Tên của bạn</label>
-        <input 
-          type="text" 
-          id="username-input" 
-          placeholder="Ví dụ: Linh, Nam..." 
-          class="w-full px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-        />
-      </div>
-
-      <!-- Dropdown chọn giới tính -->
-      <div class="flex flex-col">
-        <label for="gender-select" class="text-sm text-gray-400 mb-1">Giới tính</label>
-        <select 
-          id="gender-select"
-          class="w-full px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-        >
-          <option value="Nam">Nam</option>
-          <option value="Nữ">Nữ</option>
-          <option value="Không rõ">Không rõ</option>
-        </select>
-      </div>
-
-    </div>
-
-      
-
-
-      <!-- Nút bắt đầu -->
-      <button 
-        onclick="startMatching()" 
-        class="mt-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-medium transition"
-      >
-        🔍 Bắt đầu ghép đôi
-      </button>
-
-      <!-- UI đang tìm đối tượng (chỉ hiện sau khi bấm) -->
-      <div id="searching-ui" class="hidden flex flex-col items-center gap-2">
-        <div class="text-sm text-gray-400 animate-pulse">
-          Hệ thống đang tìm người bạn phù hợp cho bạn...
-        </div>
-        <div class="flex gap-1 text-xl font-semibold text-blue-400">
-          <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-        </div>
-      </div>
-
-      <!-- Trạng thái -->
-      <div id="status" class="text-sm text-gray-400"></div>
-
-      <!-- Quote -->
-      <div id="quote" class="text-center text-sm text-gray-400 italic mt-2 px-4"></div>
-    </div>
-
-    
     <!-- Chat Container -->
     <div id="chat" class="hidden">
       <!-- Chat Header -->
@@ -372,7 +301,28 @@
   <script>
     // Socket connection
     const socket = io();
+
+    let myUserId = localStorage.getItem("anonychat_uid");
+    if (!myUserId) {
+      myUserId = crypto.randomUUID(); // Hoặc dùng Math.random() đơn giản cũng được
+      localStorage.setItem("anonychat_uid", myUserId);
+    }
+
+    const roomCode = window.location.pathname.split("/").pop();
+    if (window.location.pathname.startsWith("/private_room/")) {
+        socket.emit("join-private-room", {
+          roomCode,
+          userId: myUserId
+        });
+    }
+
     const messages = document.getElementById("messages");
+    const savedChat = localStorage.getItem("chat_log");
+    if (savedChat) {
+      messages.innerHTML = savedChat;
+      messages.scrollTop = messages.scrollHeight;
+    }
+
     const input = document.getElementById("input");
     const status = document.getElementById("status");
     const chatDiv = document.getElementById("chat");
@@ -383,29 +333,25 @@
     
     // Socket events
     socket.on("matched", (data) => {
-      const name = data.partnerName || "Người lạ";
-      const genderText = data.partnerGender || "Không rõ";
+      const name = localStorage.getItem("partner_name") || "Người lạ";
+      const genderText = localStorage.getItem("partner_gender") || "Không rõ";
+
       let genderIcon = "❓";
 
       if (genderText === "Nam") genderIcon = "♂️";
       else if (genderText === "Nữ") genderIcon = "♀️";
 
-
-      status.innerHTML = `
-        <div class="flex items-center gap-2">
-          <div class="online-indicator"></div>
-          <span class="text-gray-300">Đã kết nối với ${name} (${genderIcon})</span>
-        </div>
-      `;
-
       chatDiv.classList.remove("hidden");
-      document.getElementById("waiting-room").classList.add("hidden");
       document.getElementById("partner-info").textContent = `${name} (${genderIcon})`;
 
-      appendSystemMessage(`🤝 Bạn đang trò chuyện với <strong>${name}</strong> (${genderIcon}).`);
-      appendSystemMessage("💬 Hãy bắt đầu một cuộc trò chuyện thú vị, và đừng chia sẻ thông tin cá nhân nhé!");
-      startChatTimer();
-
+      appendSystemMessage(`🎉 Bạn đã được kết nối lại với ${name} (${genderIcon})`);
+      const savedStart = localStorage.getItem("chat_start_time");
+      if (savedStart) {
+        chatStartTime = parseInt(savedStart);
+        startChatTimer(true); // dùng lại thời gian cũ
+      } else {
+        startChatTimer(); // bắt đầu mới
+      }
     });
 
     
@@ -419,6 +365,13 @@
     });
     
     socket.on("partner-disconnected", () => {
+      // Nếu đang ở /private_room/, chỉ hiện thông báo nhẹ
+      if (window.location.pathname.startsWith("/private_room/")) {
+        appendSystemMessage("⚠️ Đối phương đang tạm mất kết nối... Chờ họ quay lại.");
+        return;
+      }
+
+      // Trường hợp chat ngẫu nhiên
       const status = document.getElementById("status");
       if (status) {
         status.innerHTML = `
@@ -431,6 +384,7 @@
       appendSystemMessage("❌ Người lạ đã ngắt kết nối. Bạn có thể tải lại để bắt đầu cuộc trò chuyện mới.");
       appendSystemMessage(`<button onclick="location.reload()" class="mt-2 text-blue-400 hover:underline">🔄 Tìm người mới</button>`);
     });
+
 
     
     socket.on("typing", () => {
@@ -567,6 +521,7 @@
       
       messages.appendChild(messageDiv);
       messages.scrollTop = messages.scrollHeight;
+      localStorage.setItem("chat_log", messages.innerHTML); // Lưu log chat
     }
     
     function appendFileMessage(sender, fileData) {
@@ -619,6 +574,7 @@
       
       messages.appendChild(messageDiv);
       messages.scrollTop = messages.scrollHeight;
+      localStorage.setItem("chat_log", messages.innerHTML); 
     }
     
     function appendSystemMessage(msg) {
@@ -631,6 +587,7 @@
       `;
       messages.appendChild(messageDiv);
       messages.scrollTop = messages.scrollHeight;
+      localStorage.setItem("chat_log", messages.innerHTML); 
     }
     
     function showTypingIndicator() {
@@ -645,26 +602,7 @@
     // Initialize
     input.focus();
 
-    const quotes = [
-      "💡 Hãy thân thiện — người bên kia cũng đang hồi hộp như bạn!",
-      "⌛ Tìm bạn mới đôi khi cũng cần một chút kiên nhẫn.",
-      "🧠 Trí tuệ cảm xúc cao sẽ khiến cuộc trò chuyện thú vị hơn.",
-      "🔄 Ghép đôi ngẫu nhiên... Có thể đó là một người bạn tuyệt vời!",
-      "😄 Một câu chào có thể là khởi đầu của một tình bạn."
-    ];
-
-    function showRandomQuote() {
-      const quoteEl = document.getElementById("quote");
-      if (quoteEl) {
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-        quoteEl.textContent = randomQuote;
-      }
-    }
-
-    setInterval(showRandomQuote, 5000);
-    showRandomQuote(); // lần đầu
-
-
+    
     let idleTimeout;
     const IDLE_LIMIT_MS = 3 * 60 * 1000; // 3 phút
 
@@ -688,64 +626,34 @@
       }
     });
 
-    socket.on("matched", () => {
-      resetIdleTimer();
-    });
+    
 
-    async function fetchOnlineStats() {
-      try {
-        const res = await fetch("/stats");
-        const data = await res.json();
-        const el = document.getElementById("online-count");
-        if (el) {
-          const span = el.querySelector("span");
-          if (span) span.textContent = `Đang online: ${data.connectedUsers}`;
-        }
-      } catch (err) {
-        console.error("Lỗi lấy thống kê online", err);
-      }
-    }
+    
+    // window.addEventListener("DOMContentLoaded", () => {
+    //   const savedName = localStorage.getItem("anonychat_name");
+    //   const savedGender = localStorage.getItem("anonychat_gender");
 
-    setInterval(fetchOnlineStats, 5000);
-    fetchOnlineStats();
+    //   if (savedName) {
+    //     document.getElementById("username-input").value = savedName;
+    //   }
 
-
-    function startMatching() {
-      const name = document.getElementById("username-input").value.trim();
-      const gender = document.getElementById("gender-select").value;
-
-      if (!name) {
-        alert("Vui lòng nhập tên!");
-        return;
-      }
-
-      localStorage.setItem("anonychat_name", name);
-      localStorage.setItem("anonychat_gender", gender);
-      socket.emit("start-matching", { name, gender });
-
-      document.getElementById("searching-ui").classList.remove("hidden");
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const savedName = localStorage.getItem("anonychat_name");
-      const savedGender = localStorage.getItem("anonychat_gender");
-
-      if (savedName) {
-        document.getElementById("username-input").value = savedName;
-      }
-
-      const genderSelect = document.getElementById("gender-select");
-      if (genderSelect && savedGender) {
-        genderSelect.value = savedGender;
-      }
-    });
+    //   const genderSelect = document.getElementById("gender-select");
+    //   if (genderSelect && savedGender) {
+    //     genderSelect.value = savedGender;
+    //   }
+    // });
 
     let chatStartTime;
     let chatTimerInterval;
 
-    function startChatTimer() {
-      chatStartTime = Date.now();
+    function startChatTimer(useSaved = false) {
+      if (!useSaved) {
+        chatStartTime = Date.now();
+        localStorage.setItem("chat_start_time", chatStartTime); // 💾 Lưu lại
+      }
+
       const timerEl = document.getElementById("chat-timer");
+      if (!timerEl) return;
 
       if (chatTimerInterval) clearInterval(chatTimerInterval);
 
@@ -756,6 +664,7 @@
         timerEl.textContent = `⏱ ${minutes} phút ${seconds < 10 ? "0" : ""}${seconds} giây`;
       }, 1000);
     }
+
 
     function sendFriendRequest() {
       socket.emit("friend-request");
@@ -775,18 +684,14 @@
       document.getElementById("friend-confirm-box").classList.add("hidden");
     }
 
-    socket.on("friend-confirmed", ({ url, partnerName, partnerGender }) => {
-      localStorage.setItem("partner_name", partnerName);
-      localStorage.setItem("partner_gender", partnerGender);
-
+    socket.on("friend-confirmed", ({ url }) => {
       appendSystemMessage("🎉 Cả hai đã đồng ý kết bạn! Đang chuyển tới phòng riêng...");
       setTimeout(() => {
         window.location.href = url;
       }, 2000);
     });
 
-
-
+    
   </script>
   <audio id="send-sound" src="send.mp3" preload="auto"></audio>
   <audio id="receive-sound" src="receive.mp3" preload="auto"></audio>
